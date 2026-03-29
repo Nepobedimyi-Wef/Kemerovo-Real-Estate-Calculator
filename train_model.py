@@ -51,7 +51,6 @@ def train_and_save_model(data_path, target_col, model_name):
 
     print("🏗️ Создание нейронной сети...")
 
-    # Более простая архитектура для предотвращения переобучения
     model = tf.keras.Sequential([
         tf.keras.layers.Input(shape=(input_dim,)),
         tf.keras.layers.Dense(64, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.001)),
@@ -63,7 +62,6 @@ def train_and_save_model(data_path, target_col, model_name):
         tf.keras.layers.Dense(1)
     ])
 
-    # Компиляция с меньшей learning rate
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=0.0005),
         loss='mean_squared_error',
@@ -95,7 +93,6 @@ def train_and_save_model(data_path, target_col, model_name):
         verbose=0
     )
 
-    # Сохранение модели и препроцессора
     model.save(f'model/{model_name}_model.h5', save_format='h5')
     joblib.dump(preprocessor, f'model/{model_name}_preprocessor.pkl')
 
@@ -104,23 +101,20 @@ def train_and_save_model(data_path, target_col, model_name):
         'categorical': categorical_cols,
         'numeric': numeric_cols,
         'target': target_col,
-        'feature_importance': None  # Можно добавить анализ важности признаков
+        'feature_importance': None  
     }
     with open(f'model/{model_name}_columns.pkl', 'wb') as f:
         pickle.dump(column_info, f)
 
-    # Оценка модели
     loss, mae, mape = model.evaluate(X_test_processed, y_test, verbose=0)
     y_pred = model.predict(X_test_processed, verbose=0).flatten()
 
-    # Более точный расчет MAPE
     valid_idx = y_test.values != 0
     if np.any(valid_idx):
         mape_percent = np.mean(np.abs((y_test.values[valid_idx] - y_pred[valid_idx]) / y_test.values[valid_idx])) * 100
     else:
         mape_percent = 0
 
-    # Расчет R² для оценки качества
     ss_res = np.sum((y_test.values - y_pred) ** 2)
     ss_tot = np.sum((y_test.values - np.mean(y_test.values)) ** 2)
     r2 = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
@@ -131,13 +125,11 @@ def train_and_save_model(data_path, target_col, model_name):
     print(f"   • R²: {r2:.3f}")
     print(f"   • Эпох обучения: {len(history.history['loss'])}")
 
-    # Анализ распределения ошибок
     errors = y_pred - y_test.values
     print(f"   • Макс переоценка: {errors.max():,.0f} руб")
     print(f"   • Макс недооценка: {errors.min():,.0f} руб")
     print(f"   • Средняя ошибка: {errors.mean():,.0f} руб")
 
-    # Проверка на явно нереалистичные предсказания
     unrealistic_idx = np.where(y_pred > y_test.values * 2)[0]
     if len(unrealistic_idx) > 0:
         print(f"   ⚠️  Найдено {len(unrealistic_idx)} нереалистичных предсказаний (в 2+ раза выше реальных)")
